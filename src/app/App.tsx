@@ -421,9 +421,10 @@ const NAV: { id: ViewId; label: string; icon: React.ReactNode; count: number }[]
   { id: "sessions", label: "Session History", icon: <Clock size={15} />, count: SESSIONS.length },
 ];
 
-const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings }: {
+const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings, onSync, syncing, lastSynced }: {
   view: ViewId; onNavigate: (v: ViewId) => void; collapsed: boolean;
   setCollapsed: (v: boolean) => void; onSettings: () => void;
+  onSync: () => void; syncing: boolean; lastSynced: string | null;
 }) => (
   <aside className="flex flex-col h-full transition-all duration-300 shrink-0"
     style={{ width: collapsed ? "56px" : "220px", background: "linear-gradient(180deg,#0a0f16,#0d1320)", borderRight: "1px solid rgba(201,168,76,0.12)" }}>
@@ -465,11 +466,19 @@ const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings }: {
       ))}
     </nav>
 
-    <div className="border-t px-3 py-3" style={{ borderColor: "rgba(201,168,76,0.08)" }}>
+    <div className="border-t px-3 py-3 space-y-1" style={{ borderColor: "rgba(201,168,76,0.08)" }}>
+      <button onClick={onSync} disabled={syncing}
+        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-sm transition-all group hover:bg-[rgba(201,168,76,0.07)] disabled:opacity-50">
+        <Loader2 size={13} className={`text-[#5a8a6a] shrink-0 ${syncing ? "animate-spin" : ""}`} />
+        {!collapsed && <div className="flex flex-col items-start">
+          <span className="text-[10px] font-mono text-[#5a8a6a] group-hover:text-[#7ab58a] transition-colors tracking-wider">{syncing ? "Syncing…" : "Sync from Kanka"}</span>
+          {lastSynced && <span className="text-[9px] font-mono text-[#3a3530]">{lastSynced}</span>}
+        </div>}
+      </button>
       <button onClick={onSettings}
         className="w-full flex items-center gap-2.5 px-2 py-2 rounded-sm transition-all group hover:bg-[rgba(201,168,76,0.07)]">
         <Settings size={13} className="text-[#5a5244] group-hover:text-[#c9a84c] transition-colors shrink-0" />
-        {!collapsed && <span className="text-[10px] font-mono text-[#5a5244] group-hover:text-[#c9a84c] transition-colors tracking-wider">Connect Kanka API</span>}
+        {!collapsed && <span className="text-[10px] font-mono text-[#5a5244] group-hover:text-[#c9a84c] transition-colors tracking-wider">API Settings</span>}
       </button>
     </div>
   </aside>
@@ -1520,14 +1529,26 @@ export default function App() {
   const [kankaData, setKankaData] = useState<KankaData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const navigate = useCallback((v: ViewId) => setView(v), []);
 
-  // Re-connect on mount if credentials already stored
+  // Load from cache on mount, fall back to Kanka fetch
   useEffect(() => {
     const token = localStorage.getItem("kanka_token") || "";
     const campaignId = localStorage.getItem("kanka_campaign_id") || DEFAULT_CAMPAIGN_ID;
-    if (token) loadKankaData(token, campaignId, "");
+    fetch("/cache/read")
+      .then(r => r.ok ? r.json() : null)
+      .then(cached => {
+        if (cached?.data) {
+          setKankaData(cached.data);
+          setLastSynced(cached.syncedAt || null);
+        } else if (token) {
+          loadKankaData(token, campaignId, "");
+        }
+      })
+      .catch(() => { if (token) loadKankaData(token, campaignId, ""); });
   }, []);
 
   const loadKankaData = async (token: string, campaignId: string, campaignName: string) => {
@@ -1551,7 +1572,7 @@ export default function App() {
           name = found?.name || `Campaign ${campaignId}`;
         } catch { name = `Campaign ${campaignId}`; }
       }
-      setKankaData({
+      const fresh: KankaData = {
         campaignName: name,
         characters: chRes.status === "fulfilled" ? chRes.value.data : [],
         locations: locRes.status === "fulfilled" ? locRes.value.data : [],
@@ -1559,7 +1580,16 @@ export default function App() {
         quests: qRes.status === "fulfilled" ? qRes.value.data : [],
         journals: jRes.status === "fulfilled" ? jRes.value.data : [],
         items: iRes.status === "fulfilled" ? iRes.value.data : [],
-      });
+      };
+      const syncedAt = new Date().toLocaleString();
+      setKankaData(fresh);
+      setLastSynced(syncedAt);
+      // Save to local cache file
+      fetch("/cache/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: fresh, syncedAt }),
+      }).catch(() => {});
     } catch (e: unknown) {
       setLoadError(e instanceof Error ? e.message : "Failed to load Kanka data.");
     } finally {
@@ -1569,6 +1599,15 @@ export default function App() {
 
   const handleConnected = (token: string, campaignId: string, campaignName: string) => {
     loadKankaData(token, campaignId, campaignName);
+  };
+
+  const handleSync = async () => {
+    const token = localStorage.getItem("kanka_token") || "";
+    const campaignId = localStorage.getItem("kanka_campaign_id") || DEFAULT_CAMPAIGN_ID;
+    if (!token) { setShowSettings(true); return; }
+    setSyncing(true);
+    await loadKankaData(token, campaignId, kankaData?.campaignName || "");
+    setSyncing(false);
   };
 
   // ── Debug ──────────────────────────────────────────────────────────────
@@ -1617,7 +1656,7 @@ export default function App() {
     <div className="dark flex h-screen overflow-hidden" style={{ background: "#0d1117", fontFamily: "'Crimson Pro', Georgia, serif" }}>
       {showSettings && <KankaSettingsModal onClose={() => setShowSettings(false)} onConnected={handleConnected} />}
 
-      <Sidebar view={view} onNavigate={navigate} collapsed={collapsed} setCollapsed={setCollapsed} onSettings={() => setShowSettings(true)} />
+      <Sidebar view={view} onNavigate={navigate} collapsed={collapsed} setCollapsed={setCollapsed} onSettings={() => setShowSettings(true)} onSync={handleSync} syncing={syncing} lastSynced={lastSynced} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="flex items-center gap-4 px-6 py-3 border-b shrink-0"
