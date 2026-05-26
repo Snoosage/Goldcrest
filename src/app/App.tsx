@@ -199,7 +199,7 @@ const KankaSettingsModal = ({
     setStatus("testing");
     setErrorMsg("");
     try {
-      const data = await kankaFetch(token, `/campaigns/${campaignId}/characters`);
+      const data = await kankaFetch(token, `/campaigns/${campaignId}/characters?limit=100`);
       if (!data.data) throw new Error("Unexpected response from Kanka.");
       const camp = campaigns.find(c => String(c.id) === String(campaignId));
       localStorage.setItem("kanka_campaign_id", campaignId);
@@ -1535,12 +1535,12 @@ export default function App() {
     setLoadError("");
     try {
       const [chRes, locRes, orgRes, qRes, jRes, iRes] = await Promise.allSettled([
-        kankaFetch(token, `/campaigns/${campaignId}/characters`),
-        kankaFetch(token, `/campaigns/${campaignId}/locations`),
-        kankaFetch(token, `/campaigns/${campaignId}/organisations`),
-        kankaFetch(token, `/campaigns/${campaignId}/quests`),
-        kankaFetch(token, `/campaigns/${campaignId}/journals`),
-        kankaFetch(token, `/campaigns/${campaignId}/items`),
+        kankaFetch(token, `/campaigns/${campaignId}/characters?limit=100`),
+        kankaFetch(token, `/campaigns/${campaignId}/locations?limit=100`),
+        kankaFetch(token, `/campaigns/${campaignId}/organisations?limit=100`),
+        kankaFetch(token, `/campaigns/${campaignId}/quests?limit=100`),
+        kankaFetch(token, `/campaigns/${campaignId}/journals?limit=100`),
+        kankaFetch(token, `/campaigns/${campaignId}/items?limit=100`),
       ]);
       // Resolve campaign name if not passed
       let name = campaignName;
