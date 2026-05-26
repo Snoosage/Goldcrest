@@ -150,7 +150,7 @@ function stripHtml(html?: string): string {
 }
 
 // Relative path — routed through the Figma Make proxy to the Edge Function
-const KANKA_BASE = "https://kanka.io/api/1.0";
+const KANKA_BASE = "/kanka-proxy";
 const DEFAULT_CAMPAIGN_ID = "320428";
 
 async function kankaFetch(token: string, path: string) {

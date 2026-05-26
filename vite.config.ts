@@ -20,4 +20,14 @@ export default defineConfig({
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 
+  server: {
+    proxy: {
+      '/kanka-proxy': {
+        target: 'https://kanka.io/api/1.0',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/kanka-proxy/, ''),
+      },
+    },
+  },
+
 })
