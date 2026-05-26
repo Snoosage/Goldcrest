@@ -23,9 +23,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/kanka-proxy': {
-        target: 'https://app.kanka.io/api/1.0',
+        target: 'https://kanka.io',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/kanka-proxy/, ''),
+        rewrite: (path) => path.replace(/^\/kanka-proxy/, '/api/1.0'),
+        followRedirects: true,
       },
     },
   },
