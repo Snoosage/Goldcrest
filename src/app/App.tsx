@@ -1534,23 +1534,6 @@ export default function App() {
 
   const navigate = useCallback((v: ViewId) => setView(v), []);
 
-  // Load from cache on mount, fall back to Kanka fetch
-  useEffect(() => {
-    const token = localStorage.getItem("kanka_token") || "";
-    const campaignId = localStorage.getItem("kanka_campaign_id") || DEFAULT_CAMPAIGN_ID;
-    fetch("/cache/read")
-      .then(r => r.ok ? r.json() : null)
-      .then(cached => {
-        if (cached?.data) {
-          setKankaData(cached.data);
-          setLastSynced(cached.syncedAt || null);
-        } else if (token) {
-          loadKankaData(token, campaignId, "");
-        }
-      })
-      .catch(() => { if (token) loadKankaData(token, campaignId, ""); });
-  }, []);
-
   const loadKankaData = async (token: string, campaignId: string, campaignName: string) => {
     setLoading(true);
     setLoadError("");
@@ -1563,7 +1546,6 @@ export default function App() {
         kankaFetch(token, `/campaigns/${campaignId}/journals?limit=100`),
         kankaFetch(token, `/campaigns/${campaignId}/items?limit=100`),
       ]);
-      // Resolve campaign name if not passed
       let name = campaignName;
       if (!name) {
         try {
@@ -1584,7 +1566,6 @@ export default function App() {
       const syncedAt = new Date().toLocaleString();
       setKankaData(fresh);
       setLastSynced(syncedAt);
-      // Save to local cache file
       fetch("/cache/write", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1596,6 +1577,23 @@ export default function App() {
       setLoading(false);
     }
   };
+
+  // Load from cache on mount, fall back to Kanka fetch
+  useEffect(() => {
+    const token = localStorage.getItem("kanka_token") || "";
+    const campaignId = localStorage.getItem("kanka_campaign_id") || DEFAULT_CAMPAIGN_ID;
+    fetch("/cache/read")
+      .then(r => r.ok ? r.json() : null)
+      .then(cached => {
+        if (cached?.data) {
+          setKankaData(cached.data);
+          setLastSynced(cached.syncedAt || null);
+        } else if (token) {
+          loadKankaData(token, campaignId, "");
+        }
+      })
+      .catch(() => { if (token) loadKankaData(token, campaignId, ""); });
+  }, []);
 
   const handleConnected = (token: string, campaignId: string, campaignName: string) => {
     loadKankaData(token, campaignId, campaignName);
