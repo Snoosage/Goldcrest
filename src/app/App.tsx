@@ -150,14 +150,17 @@ function stripHtml(html?: string): string {
 }
 
 // Relative path — routed through the Figma Make proxy to the Edge Function
-const EDGE_BASE = "/make-server-cb991f29/kanka";
+const KANKA_BASE = "https://kanka.io/api/1.0";
 const DEFAULT_CAMPAIGN_ID = "320428";
 
-async function kankaFetch(_token: string, path: string) {
-  const res = await fetch(`${EDGE_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+async function kankaFetch(token: string, path: string) {
+  const res = await fetch(`${KANKA_BASE}${path}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
-  if (!res.ok) throw new Error(`Server ${res.status}: ${res.statusText}`);
+  if (!res.ok) throw new Error(`Kanka ${res.status}: ${res.statusText}`);
   return res.json();
 }
 
@@ -1561,12 +1564,12 @@ export default function App() {
     setShowDebug(true);
     // Test health first, then kanka
     try {
-      const health = await fetch("/make-server-cb991f29/health");
-      const healthText = await health.text();
-      setDebugResult(`Health: ${health.status} ${healthText}\n\nTesting Kanka proxy…`);
-      const kanka = await fetch(`${EDGE_BASE}/campaigns`);
+      const token = localStorage.getItem("kanka_token") || "";
+      const kanka = await fetch(`${KANKA_BASE}/campaigns`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
       const kankaText = await kanka.text();
-      setDebugResult(`Health: ${health.status} ${healthText}\n\nKanka /campaigns: ${kanka.status}\n${kankaText.slice(0, 600)}`);
+      setDebugResult(`Kanka /campaigns: ${kanka.status}\n${kankaText.slice(0, 600)}`);
     } catch (e: unknown) {
       setDebugResult(`Fetch error: ${e instanceof Error ? e.message : String(e)}`);
     }
