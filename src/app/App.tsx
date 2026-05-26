@@ -175,34 +175,37 @@ const KankaSettingsModal = ({
   onConnected: (token: string, campaignId: string, campaignName: string) => void;
 }) => {
   const [campaignId, setCampaignId] = useState(() => localStorage.getItem("kanka_campaign_id") || "");
+  const [token, setTokenState] = useState(() => localStorage.getItem("kanka_token") || "");
   const [status, setStatus] = useState<KankaStatus>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [campaigns, setCampaigns] = useState<{ id: number; name: string }[]>([]);
 
-  // Fetch campaign list via Edge Function on mount
-  const fetchCampaigns = async () => {
+  // Fetch campaign list when a token is available
+  const fetchCampaigns = async (t: string) => {
+    if (!t) return;
     try {
-      const data = await kankaFetch("", "/campaigns");
+      const data = await kankaFetch(t, "/campaigns");
       setCampaigns(data.data || []);
     } catch {
       setCampaigns([]);
     }
   };
 
-  useEffect(() => { fetchCampaigns(); }, []);
+  useEffect(() => { fetchCampaigns(token); }, [token]);
 
   const handleConnect = async () => {
-    if (!campaignId) return;
+    if (!campaignId || !token) return;
     setStatus("testing");
     setErrorMsg("");
     try {
-      const data = await kankaFetch("", `/campaigns/${campaignId}/characters`);
+      const data = await kankaFetch(token, `/campaigns/${campaignId}/characters`);
       if (!data.data) throw new Error("Unexpected response from Kanka.");
       const camp = campaigns.find(c => String(c.id) === String(campaignId));
       localStorage.setItem("kanka_campaign_id", campaignId);
+      localStorage.setItem("kanka_token", token);
       setStatus("success");
       setTimeout(() => {
-        onConnected("", campaignId, camp?.name || `Campaign ${campaignId}`);
+        onConnected(token, campaignId, camp?.name || `Campaign ${campaignId}`);
         onClose();
       }, 900);
     } catch (e: unknown) {
@@ -213,7 +216,9 @@ const KankaSettingsModal = ({
 
   const handleDisconnect = () => {
     localStorage.removeItem("kanka_campaign_id");
+    localStorage.removeItem("kanka_token");
     setCampaignId("");
+    setTokenState("");
     setCampaigns([]);
     setStatus("idle");
   };
@@ -240,9 +245,18 @@ const KankaSettingsModal = ({
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <div className="flex items-center gap-2 p-3 rounded-sm border" style={{ background: "rgba(90,138,106,0.08)", borderColor: "rgba(90,138,106,0.25)" }}>
-            <div className="w-1.5 h-1.5 rounded-full bg-[#5a8a6a] animate-pulse shrink-0" />
-            <span className="text-xs font-[Crimson_Pro] text-[#8a9a8a]">API token secured via Supabase — just pick your campaign below.</span>
+          <div>
+            <label className="text-[10px] font-mono tracking-widest uppercase text-[#c9a84c] block mb-2">
+              Kanka API Token <span className="text-[#5a5244] normal-case tracking-normal">— app.kanka.io → Profile → API</span>
+            </label>
+            <input
+              type="password"
+              value={token}
+              onChange={e => { setTokenState(e.target.value); fetchCampaigns(e.target.value); }}
+              placeholder="Paste your Kanka API token here"
+              className="w-full px-3 py-2.5 rounded-sm border text-sm font-mono text-[#e8dcc8] outline-none transition-all"
+              style={{ background: "#0d1117", borderColor: token ? "rgba(201,168,76,0.4)" : "rgba(201,168,76,0.15)", color: "#e8dcc8" }}
+            />
           </div>
 
           <div>
@@ -1510,8 +1524,9 @@ export default function App() {
 
   // Re-connect on mount if credentials already stored
   useEffect(() => {
+    const token = localStorage.getItem("kanka_token") || "";
     const campaignId = localStorage.getItem("kanka_campaign_id") || DEFAULT_CAMPAIGN_ID;
-    loadKankaData("", campaignId, "");
+    if (token) loadKankaData(token, campaignId, "");
   }, []);
 
   const loadKankaData = async (token: string, campaignId: string, campaignName: string) => {
