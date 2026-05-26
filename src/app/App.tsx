@@ -1103,44 +1103,64 @@ const SessionsView = () => (
 
 // ── Relationship Graph ─────────────────────────────────────────────────────
 
-const RelationshipGraph = () => {
-  const nodes = [
-    { id: "sera", label: "Seraphine", x: 50, y: 18, color: "#c9a84c" },
-    { id: "vael", label: "Vael", x: 20, y: 52, color: "#6a8fb5" },
-    { id: "osric", label: "Osric", x: 78, y: 52, color: "#c4783a" },
-    { id: "mireth", label: "Mireth", x: 32, y: 84, color: "#7a5c8a" },
-    { id: "draven", label: "Draven", x: 68, y: 84, color: "#8a5a5a" },
-    { id: "king", label: "Aldric IV", x: 50, y: 58, color: "#e8dcc8" },
-  ];
-  const edges = [
-    { from: "sera", to: "vael", label: "Ally", color: "#5a8a6a" },
-    { from: "sera", to: "osric", label: "Mentee", color: "#6a8fb5" },
-    { from: "sera", to: "draven", label: "Target", color: "#8a5a5a" },
-    { from: "vael", to: "mireth", label: "Asset", color: "#7a5c8a" },
-    { from: "mireth", to: "draven", label: "Enemy", color: "#8a5a5a" },
-    { from: "osric", to: "king", label: "Advisor", color: "#c9a84c" },
-    { from: "draven", to: "king", label: "Rival", color: "#c4783a" },
-  ];
-  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+const NODE_COLORS = ["#c9a84c","#6a8fb5","#7a5c8a","#c4783a","#5a8a6a","#8a5a5a","#4a8a8a","#8a7a4a"];
+
+const RelationshipGraph = ({ data }: { data?: KankaData }) => {
+  const relations = data?.relations || [];
+  const characters = data?.characters || [];
+
+  if (!data || relations.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-32 text-xs font-mono text-[#5a5244]"
+        style={{ background: "#0a0f16", borderRadius: "4px", border: "1px solid rgba(201,168,76,0.18)" }}>
+        {!data ? "Connect Kanka to view relationships." : "No relationships found in this campaign."}
+      </div>
+    );
+  }
+
+  // Build node set from relation endpoints
+  const involvedIds = new Set<number>();
+  relations.forEach(r => { involvedIds.add(r.source_id); involvedIds.add(r.target_id); });
+  const nodeChars = characters.filter(c => involvedIds.has(c.id)).slice(0, 20);
+
+  // Position nodes in a circle
+  const nodes = nodeChars.map((c, i) => {
+    const angle = (i / nodeChars.length) * 2 * Math.PI - Math.PI / 2;
+    const rx = 38; const ry = 38;
+    return {
+      id: c.id,
+      label: c.name.split(" ")[0],
+      x: 50 + rx * Math.cos(angle),
+      y: 50 + ry * Math.sin(angle),
+      color: NODE_COLORS[i % NODE_COLORS.length],
+    };
+  });
+  const byId = new Map(nodes.map(n => [n.id, n]));
+
+  const edges = relations
+    .filter(r => byId.has(r.source_id) && byId.has(r.target_id))
+    .slice(0, 40);
+
   return (
-    <div className="relative w-full" style={{ paddingBottom: "58%", background: "#0a0f16", borderRadius: "4px", border: "1px solid rgba(201,168,76,0.18)" }}>
+    <div className="relative w-full" style={{ paddingBottom: "60%", background: "#0a0f16", borderRadius: "4px", border: "1px solid rgba(201,168,76,0.18)" }}>
       <svg className="absolute inset-0 w-full h-full">
         {edges.map((e, i) => {
-          const f = byId[e.from]; const t = byId[e.to];
+          const f = byId.get(e.source_id)!; const t = byId.get(e.target_id)!;
           const mx = (f.x + t.x) / 2; const my = (f.y + t.y) / 2;
+          const col = e.colour || "#c9a84c";
           return (
             <g key={i}>
               <line x1={`${f.x}%`} y1={`${f.y}%`} x2={`${t.x}%`} y2={`${t.y}%`}
-                stroke={e.color} strokeWidth="1.5" strokeOpacity="0.35" strokeDasharray="4,3" />
-              <text x={`${mx}%`} y={`${my}%`} fill={e.color} fontSize="8" textAnchor="middle"
-                fontFamily="JetBrains Mono" opacity="0.65">{e.label}</text>
+                stroke={col} strokeWidth="1" strokeOpacity="0.3" strokeDasharray="4,3" />
+              {e.relation && <text x={`${mx}%`} y={`${my}%`} fill={col} fontSize="7" textAnchor="middle"
+                fontFamily="JetBrains Mono" opacity="0.6">{e.relation}</text>}
             </g>
           );
         })}
         {nodes.map(n => (
           <g key={n.id}>
-            <circle cx={`${n.x}%`} cy={`${n.y}%`} r="16" fill={`${n.color}15`} stroke={n.color} strokeWidth="1.5" strokeOpacity="0.55" />
-            <text x={`${n.x}%`} y={`${n.y + 5.5}%`} fill={n.color} fontSize="8.5" textAnchor="middle"
+            <circle cx={`${n.x}%`} cy={`${n.y}%`} r="14" fill={`${n.color}18`} stroke={n.color} strokeWidth="1.5" strokeOpacity="0.6" />
+            <text x={`${n.x}%`} y={`${n.y + 4}%`} fill={n.color} fontSize="8" textAnchor="middle"
               fontFamily="Cinzel" fontWeight="500" opacity="0.9">{n.label}</text>
           </g>
         ))}
@@ -1285,28 +1305,49 @@ interface KankaData {
   campaignName: string;
   characters: { id: number; name: string; entry_parsed?: string; image_full?: string; image_thumb?: string; race?: { name: string }; type?: string; age?: string; location?: { name: string }; is_dead?: boolean; tags?: { id: number; name: string }[] }[];
   locations: { id: number; name: string; entry_parsed?: string; image_full?: string; type?: string; parent?: { name: string }; tags?: { id: number; name: string }[] }[];
-  organisations: { id: number; name: string; entry_parsed?: string; type?: string; tags?: { id: number; name: string }[] }[];
+  organisations: { id: number; name: string; entry_parsed?: string; image_full?: string; type?: string; location?: { name: string }; tags?: { id: number; name: string }[] }[];
   quests: { id: number; name: string; entry_parsed?: string; is_completed?: boolean; character?: { name: string }; date?: string }[];
   journals: { id: number; name: string; entry_parsed?: string; date?: string; character?: { name: string }; type?: string }[];
   items: { id: number; name: string; entry_parsed?: string; type?: string; character?: { name: string }; location?: { name: string } }[];
+  relations: { id: number; source_id: number; target_id: number; relation?: string; colour?: string }[];
 }
+
+// ── Image Lightbox ─────────────────────────────────────────────────────────
+
+const ImageLightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)" }}
+    onClick={onClose}>
+    <button className="absolute top-5 right-5 text-[#5a5244] hover:text-[#c9a84c] transition-colors" onClick={onClose}>
+      <X size={22} />
+    </button>
+    <img src={src} alt={alt} className="max-h-[90vh] max-w-[90vw] object-contain rounded-sm shadow-2xl"
+      onClick={e => e.stopPropagation()} />
+  </div>
+);
 
 // ── Kanka Live Views ───────────────────────────────────────────────────────
 
 const KankaCharactersView = ({ data }: { data: KankaData }) => {
   const [selected, setSelected] = useState<KankaData["characters"][0] | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   if (selected) return (
     <div className="p-8 max-w-[1200px] mx-auto">
+      {lightbox && <ImageLightbox src={lightbox} alt={selected.name} onClose={() => setLightbox(null)} />}
       <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-xs font-mono text-[#8a7d6a] hover:text-[#c9a84c] transition-colors mb-6 group">
         <ChevronRight size={12} className="rotate-180" /> Back
       </button>
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-4">
-          <div className="relative rounded-sm overflow-hidden bg-[#0f1520]" style={{ aspectRatio: "3/4" }}>
+          <div className="relative rounded-sm overflow-hidden bg-[#0f1520] cursor-pointer group" style={{ aspectRatio: "3/4" }}
+            onClick={() => selected.image_full && setLightbox(selected.image_full)}>
             {selected.image_full
-              ? <img src={selected.image_full} alt={selected.name} className="w-full h-full object-cover" />
+              ? <><img src={selected.image_full} alt={selected.name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.4)" }}>
+                  <Eye size={24} className="text-[#c9a84c]" />
+                </div></>
               : <div className="w-full h-full flex items-center justify-center"><Users size={48} className="text-[#2a3a4a]" /></div>}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to top,#131a24,transparent 60%)" }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to top,#131a24,transparent 60%)" }} />
             <div className="absolute bottom-4 left-4">{selected.is_dead && <StatusBadge status="hostile" />}</div>
           </div>
           {selected.tags && selected.tags.length > 0 && (
@@ -1369,43 +1410,139 @@ const KankaCharactersView = ({ data }: { data: KankaData }) => {
   );
 };
 
-const KankaLocationsView = ({ data }: { data: KankaData }) => (
-  <div className="p-8 max-w-[1400px] mx-auto">
-    <div className="mb-6">
-      <div className="text-[10px] font-mono tracking-widest uppercase text-[#c9a84c] mb-1">§ 03 — Cartography · {data.campaignName}</div>
-      <h1 className="text-3xl font-[Cinzel] font-semibold text-[#e8dcc8] tracking-wide">Locations</h1>
-      <p className="text-xs font-mono text-[#5a5244] mt-1">{data.locations.length} entries from Kanka</p>
-    </div>
-    <GoldDivider />
-    <div className="space-y-3 mt-6">
-      {data.locations.map(l => (
-        <div key={l.id} className="rounded-sm border p-5 transition-all hover:border-[rgba(201,168,76,0.35)]"
-          style={{ background: "#131a24", borderColor: "rgba(201,168,76,0.18)" }}>
-          <div className="flex items-start gap-4">
-            <div className="w-24 h-16 rounded-sm overflow-hidden shrink-0 bg-[#0f1520] flex items-center justify-center">
-              {l.image_full
-                ? <img src={l.image_full} alt={l.name} className="w-full h-full object-cover" />
-                : <Globe size={20} className="text-[#2a3a4a]" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-1">
-                <h3 className="text-sm font-[Cinzel] text-[#e8dcc8] tracking-wide">{l.name}</h3>
-                {l.type && <span className="text-[10px] font-mono px-2 py-0.5 rounded-sm" style={{ color: "#c9a84c", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)" }}>{l.type}</span>}
-                {l.parent?.name && <span className="text-[10px] font-mono text-[#5a5244]">in {l.parent.name}</span>}
-              </div>
-              {l.entry_parsed && <p className="text-xs font-[Crimson_Pro] text-[#8a7d6a] leading-relaxed line-clamp-2">{stripHtml(l.entry_parsed)}</p>}
-              {l.tags && l.tags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{l.tags.slice(0, 4).map(t => <Tag key={t.id} label={t.name} />)}</div>}
+const KankaLocationsView = ({ data }: { data: KankaData }) => {
+  const [selected, setSelected] = useState<KankaData["locations"][0] | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  if (selected) return (
+    <div className="p-8 max-w-[1200px] mx-auto">
+      {lightbox && <ImageLightbox src={lightbox} alt={selected.name} onClose={() => setLightbox(null)} />}
+      <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-xs font-mono text-[#8a7d6a] hover:text-[#c9a84c] transition-colors mb-6">
+        <ChevronRight size={12} className="rotate-180" /> Back to Locations
+      </button>
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-5">
+          <div className="relative rounded-sm overflow-hidden bg-[#0f1520] cursor-pointer group" style={{ aspectRatio: "16/10" }}
+            onClick={() => selected.image_full && setLightbox(selected.image_full)}>
+            {selected.image_full
+              ? <><img src={selected.image_full} alt={selected.name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.4)" }}>
+                  <Eye size={24} className="text-[#c9a84c]" />
+                </div></>
+              : <div className="w-full h-full flex items-center justify-center"><Globe size={48} className="text-[#2a3a4a]" /></div>}
+            <div className="absolute inset-0" style={{ background: "linear-gradient(to top,#131a24,transparent 60%)" }} />
+          </div>
+          {selected.tags && selected.tags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-1.5">{selected.tags.map(t => <Tag key={t.id} label={t.name} />)}</div>
+          )}
+        </div>
+        <div className="col-span-7 space-y-5">
+          <div>
+            <div className="text-[10px] font-mono tracking-widest uppercase text-[#c9a84c] mb-1">Location · Kanka</div>
+            <h1 className="text-3xl font-[Cinzel] font-semibold text-[#e8dcc8] tracking-wide mb-2">{selected.name}</h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-mono text-[#8a7d6a]">
+              {selected.type && <span>Type: <span className="text-[#b0a090]">{selected.type}</span></span>}
+              {selected.parent?.name && <span>Region: <span className="text-[#b0a090]">{selected.parent.name}</span></span>}
             </div>
           </div>
+          <GoldDivider />
+          {selected.entry_parsed && (
+            <CollapsibleSection title="Description">
+              <p className="text-sm font-[Crimson_Pro] text-[#c0b09a] leading-relaxed pt-1">{stripHtml(selected.entry_parsed)}</p>
+            </CollapsibleSection>
+          )}
         </div>
-      ))}
-      {data.locations.length === 0 && <div className="py-20 text-center text-xs font-mono text-[#5a5244]">No locations found.</div>}
+      </div>
     </div>
-  </div>
-);
+  );
+
+  return (
+    <div className="p-8 max-w-[1400px] mx-auto">
+      <div className="mb-6">
+        <div className="text-[10px] font-mono tracking-widest uppercase text-[#c9a84c] mb-1">§ 03 — Cartography · {data.campaignName}</div>
+        <h1 className="text-3xl font-[Cinzel] font-semibold text-[#e8dcc8] tracking-wide">Locations</h1>
+        <p className="text-xs font-mono text-[#5a5244] mt-1">{data.locations.length} entries from Kanka</p>
+      </div>
+      <GoldDivider />
+      <div className="grid grid-cols-3 gap-5 mt-6">
+        {data.locations.map(l => (
+          <div key={l.id} onClick={() => setSelected(l)}
+            className="group cursor-pointer rounded-sm border overflow-hidden transition-all duration-200 hover:border-[rgba(201,168,76,0.4)] hover:-translate-y-0.5"
+            style={{ background: "#131a24", borderColor: "rgba(201,168,76,0.18)" }}>
+            <div className="relative h-36 bg-[#0f1520] overflow-hidden">
+              {l.image_full
+                ? <img src={l.image_full} alt={l.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-95 group-hover:scale-105 transition-all duration-300" />
+                : <div className="w-full h-full flex items-center justify-center"><Globe size={28} className="text-[#2a3a4a]" /></div>}
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top,#131a24,rgba(19,26,36,0.3) 60%,transparent)" }} />
+              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"><Eye size={14} className="text-[#c9a84c]" /></div>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 className="text-sm font-[Cinzel] text-[#e8dcc8] tracking-wide">{l.name}</h3>
+                {l.type && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm" style={{ color: "#c9a84c", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)" }}>{l.type}</span>}
+              </div>
+              {l.parent?.name && <div className="text-[10px] font-mono text-[#5a5244] mb-1">in {l.parent.name}</div>}
+              {l.entry_parsed && <p className="text-xs font-[Crimson_Pro] text-[#8a7d6a] leading-relaxed line-clamp-2">{stripHtml(l.entry_parsed)}</p>}
+              {l.tags && l.tags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{l.tags.slice(0, 3).map(t => <Tag key={t.id} label={t.name} />)}</div>}
+            </div>
+          </div>
+        ))}
+        {data.locations.length === 0 && <div className="col-span-3 py-20 text-center text-xs font-mono text-[#5a5244]">No locations found.</div>}
+      </div>
+    </div>
+  );
+};
 
 const KankaFactionsView = ({ data }: { data: KankaData }) => {
+  const [selected, setSelected] = useState<KankaData["organisations"][0] | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const colors = ["#c9a84c", "#6a8fb5", "#7a5c8a", "#c4783a", "#5a8a6a", "#8a5a5a"];
+
+  if (selected) {
+    const idx = data.organisations.findIndex(o => o.id === selected.id);
+    const color = colors[idx % colors.length];
+    return (
+      <div className="p-8 max-w-[1200px] mx-auto">
+        {lightbox && <ImageLightbox src={lightbox} alt={selected.name} onClose={() => setLightbox(null)} />}
+        <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-xs font-mono text-[#8a7d6a] hover:text-[#c9a84c] transition-colors mb-6">
+          <ChevronRight size={12} className="rotate-180" /> Back to Organisations
+        </button>
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-4">
+            <div className="relative rounded-sm overflow-hidden bg-[#0f1520] cursor-pointer group" style={{ aspectRatio: "1/1" }}
+              onClick={() => selected.image_full && setLightbox(selected.image_full)}>
+              {selected.image_full
+                ? <><img src={selected.image_full} alt={selected.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(0,0,0,0.4)" }}>
+                    <Eye size={24} className="text-[#c9a84c]" />
+                  </div></>
+                : <div className="w-full h-full flex items-center justify-center"><Shield size={48} className="text-[#2a3a4a]" /></div>}
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top,#131a24,transparent 60%)" }} />
+            </div>
+            {selected.tags && selected.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">{selected.tags.map(t => <Tag key={t.id} label={t.name} />)}</div>
+            )}
+          </div>
+          <div className="col-span-8 space-y-5">
+            <div>
+              <div className="text-[10px] font-mono tracking-widest uppercase mb-1" style={{ color }}>{selected.type || "Organisation"} · Kanka</div>
+              <h1 className="text-3xl font-[Cinzel] font-semibold text-[#e8dcc8] tracking-wide mb-2">{selected.name}</h1>
+              {selected.location?.name && (
+                <div className="text-[11px] font-mono text-[#8a7d6a]">Base: <span className="text-[#b0a090]">{selected.location.name}</span></div>
+              )}
+            </div>
+            <GoldDivider />
+            {selected.entry_parsed && (
+              <CollapsibleSection title="About">
+                <p className="text-sm font-[Crimson_Pro] text-[#c0b09a] leading-relaxed pt-1">{stripHtml(selected.entry_parsed)}</p>
+              </CollapsibleSection>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 max-w-[1400px] mx-auto">
       <div className="mb-6">
@@ -1418,12 +1555,25 @@ const KankaFactionsView = ({ data }: { data: KankaData }) => {
         {data.organisations.map((o, idx) => {
           const color = colors[idx % colors.length];
           return (
-            <div key={o.id} className="rounded-sm border p-5 transition-all hover:border-[rgba(201,168,76,0.4)]"
+            <div key={o.id} onClick={() => setSelected(o)}
+              className="group cursor-pointer rounded-sm border p-5 transition-all hover:border-[rgba(201,168,76,0.4)] hover:-translate-y-0.5"
               style={{ background: "#131a24", borderColor: `${color}28`, borderLeftWidth: "4px", borderLeftColor: color }}>
-              <h3 className="text-base font-[Cinzel] text-[#e8dcc8] tracking-wide mb-1">{o.name}</h3>
-              <div className="text-[10px] font-mono text-[#8a7d6a] tracking-wider uppercase mb-3">{o.type || "Organisation"}</div>
-              {o.entry_parsed && <p className="text-xs font-[Crimson_Pro] text-[#8a7d6a] leading-relaxed line-clamp-3 mb-3">{stripHtml(o.entry_parsed)}</p>}
-              {o.tags && o.tags.length > 0 && <div className="flex flex-wrap gap-1">{o.tags.slice(0, 4).map(t => <Tag key={t.id} label={t.name} />)}</div>}
+              <div className="flex items-start gap-4">
+                {o.image_full && (
+                  <div className="w-12 h-12 rounded-sm overflow-hidden shrink-0 bg-[#0f1520]">
+                    <img src={o.image_full} alt={o.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-[Cinzel] text-[#e8dcc8] tracking-wide">{o.name}</h3>
+                    <Eye size={12} className="text-[#5a5244] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </div>
+                  <div className="text-[10px] font-mono text-[#8a7d6a] tracking-wider uppercase mb-2">{o.type || "Organisation"}</div>
+                  {o.entry_parsed && <p className="text-xs font-[Crimson_Pro] text-[#8a7d6a] leading-relaxed line-clamp-2 mb-2">{stripHtml(o.entry_parsed)}</p>}
+                  {o.tags && o.tags.length > 0 && <div className="flex flex-wrap gap-1">{o.tags.slice(0, 4).map(t => <Tag key={t.id} label={t.name} />)}</div>}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -1543,13 +1693,14 @@ export default function App() {
     setLoadError("");
     try {
       const qs = (extra: string) => `?limit=100${lastSync ? `&lastSync=${encodeURIComponent(lastSync)}` : ""}${extra}`;
-      const [chRes, locRes, orgRes, qRes, jRes, iRes] = await Promise.allSettled([
+      const [chRes, locRes, orgRes, qRes, jRes, iRes, relRes] = await Promise.allSettled([
         kankaFetch(token, `/campaigns/${campaignId}/characters${qs("")}`),
         kankaFetch(token, `/campaigns/${campaignId}/locations${qs("")}`),
         kankaFetch(token, `/campaigns/${campaignId}/organisations${qs("")}`),
         kankaFetch(token, `/campaigns/${campaignId}/quests${qs("")}`),
         kankaFetch(token, `/campaigns/${campaignId}/journals${qs("")}`),
         kankaFetch(token, `/campaigns/${campaignId}/items${qs("")}`),
+        kankaFetch(token, `/campaigns/${campaignId}/relations?limit=100`),
       ]);
       let name = campaignName;
       if (!name) {
@@ -1576,6 +1727,7 @@ export default function App() {
         quests: merge(prev?.quests || [], qRes.status === "fulfilled" ? qRes.value.data : []),
         journals: merge(prev?.journals || [], jRes.status === "fulfilled" ? jRes.value.data : []),
         items: merge(prev?.items || [], iRes.status === "fulfilled" ? iRes.value.data : []),
+        relations: merge(prev?.relations || [], relRes.status === "fulfilled" ? relRes.value.data : []),
       };
       const syncedAt = new Date().toISOString();
       setKankaData(fresh);
@@ -1705,7 +1857,7 @@ export default function App() {
               <div className="text-[10px] font-mono tracking-widest uppercase text-[#c9a84c]">NPC Relationship Map</div>
               <button onClick={() => setShowGraph(false)}><X size={14} className="text-[#5a5244] hover:text-[#c9a84c] transition-colors" /></button>
             </div>
-            <RelationshipGraph />
+            <RelationshipGraph data={kankaData ?? undefined} />
           </div>
         )}
 
