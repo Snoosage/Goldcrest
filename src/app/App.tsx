@@ -158,6 +158,7 @@ async function kankaFetch(token: string, path: string) {
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
+      "Accept": "application/json",
     },
   });
   if (!res.ok) throw new Error(`Kanka ${res.status}: ${res.statusText}`);
