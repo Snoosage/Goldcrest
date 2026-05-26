@@ -1534,17 +1534,18 @@ export default function App() {
 
   const navigate = useCallback((v: ViewId) => setView(v), []);
 
-  const loadKankaData = async (token: string, campaignId: string, campaignName: string) => {
+  const loadKankaData = async (token: string, campaignId: string, campaignName: string, lastSync?: string) => {
     setLoading(true);
     setLoadError("");
     try {
+      const qs = (extra: string) => `?limit=100${lastSync ? `&lastSync=${encodeURIComponent(lastSync)}` : ""}${extra}`;
       const [chRes, locRes, orgRes, qRes, jRes, iRes] = await Promise.allSettled([
-        kankaFetch(token, `/campaigns/${campaignId}/characters?limit=100`),
-        kankaFetch(token, `/campaigns/${campaignId}/locations?limit=100`),
-        kankaFetch(token, `/campaigns/${campaignId}/organisations?limit=100`),
-        kankaFetch(token, `/campaigns/${campaignId}/quests?limit=100`),
-        kankaFetch(token, `/campaigns/${campaignId}/journals?limit=100`),
-        kankaFetch(token, `/campaigns/${campaignId}/items?limit=100`),
+        kankaFetch(token, `/campaigns/${campaignId}/characters${qs("")}`),
+        kankaFetch(token, `/campaigns/${campaignId}/locations${qs("")}`),
+        kankaFetch(token, `/campaigns/${campaignId}/organisations${qs("")}`),
+        kankaFetch(token, `/campaigns/${campaignId}/quests${qs("")}`),
+        kankaFetch(token, `/campaigns/${campaignId}/journals${qs("")}`),
+        kankaFetch(token, `/campaigns/${campaignId}/items${qs("")}`),
       ]);
       let name = campaignName;
       if (!name) {
@@ -1554,18 +1555,27 @@ export default function App() {
           name = found?.name || `Campaign ${campaignId}`;
         } catch { name = `Campaign ${campaignId}`; }
       }
+
+      const merge = (existing: any[], incoming: any[]) => {
+        if (!lastSync || !existing.length) return incoming;
+        const map = new Map(existing.map(e => [e.id, e]));
+        for (const item of incoming) map.set(item.id, item);
+        return Array.from(map.values());
+      };
+
+      const prev = kankaData;
       const fresh: KankaData = {
         campaignName: name,
-        characters: chRes.status === "fulfilled" ? chRes.value.data : [],
-        locations: locRes.status === "fulfilled" ? locRes.value.data : [],
-        organisations: orgRes.status === "fulfilled" ? orgRes.value.data : [],
-        quests: qRes.status === "fulfilled" ? qRes.value.data : [],
-        journals: jRes.status === "fulfilled" ? jRes.value.data : [],
-        items: iRes.status === "fulfilled" ? iRes.value.data : [],
+        characters: merge(prev?.characters || [], chRes.status === "fulfilled" ? chRes.value.data : []),
+        locations: merge(prev?.locations || [], locRes.status === "fulfilled" ? locRes.value.data : []),
+        organisations: merge(prev?.organisations || [], orgRes.status === "fulfilled" ? orgRes.value.data : []),
+        quests: merge(prev?.quests || [], qRes.status === "fulfilled" ? qRes.value.data : []),
+        journals: merge(prev?.journals || [], jRes.status === "fulfilled" ? jRes.value.data : []),
+        items: merge(prev?.items || [], iRes.status === "fulfilled" ? iRes.value.data : []),
       };
-      const syncedAt = new Date().toLocaleString();
+      const syncedAt = new Date().toISOString();
       setKankaData(fresh);
-      setLastSynced(syncedAt);
+      setLastSynced(new Date(syncedAt).toLocaleString());
       fetch("/cache/write", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1587,7 +1597,7 @@ export default function App() {
       .then(cached => {
         if (cached?.data) {
           setKankaData(cached.data);
-          setLastSynced(cached.syncedAt || null);
+          setLastSynced(cached.syncedAt ? new Date(cached.syncedAt).toLocaleString() : null);
         } else if (token) {
           loadKankaData(token, campaignId, "");
         }
@@ -1604,7 +1614,9 @@ export default function App() {
     const campaignId = localStorage.getItem("kanka_campaign_id") || DEFAULT_CAMPAIGN_ID;
     if (!token) { setShowSettings(true); return; }
     setSyncing(true);
-    await loadKankaData(token, campaignId, kankaData?.campaignName || "");
+    // Pass last sync time so Kanka only returns changed entities
+    const lastSync = lastSynced ? new Date(lastSynced).toISOString().replace("T", " ").slice(0, 19) : undefined;
+    await loadKankaData(token, campaignId, kankaData?.campaignName || "", lastSync);
     setSyncing(false);
   };
 
