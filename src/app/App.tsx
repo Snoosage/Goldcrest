@@ -410,21 +410,22 @@ const SearchBar = ({ onNavigate }: { onNavigate: (v: ViewId) => void }) => {
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
 
-const NAV: { id: ViewId; label: string; icon: React.ReactNode; count: number }[] = [
-  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={15} />, count: 0 },
-  { id: "characters", label: "Characters", icon: <Users size={15} />, count: CHARACTERS.length },
-  { id: "locations", label: "Locations", icon: <MapPin size={15} />, count: LOCATIONS.length },
-  { id: "factions", label: "Organisations", icon: <Shield size={15} />, count: FACTIONS.length },
-  { id: "quests", label: "Quests", icon: <Scroll size={15} />, count: QUESTS.length },
-  { id: "journals", label: "Journals", icon: <BookOpen size={15} />, count: JOURNALS.length },
-  { id: "items", label: "Items", icon: <Package size={15} />, count: ITEMS.length },
-  { id: "sessions", label: "Session History", icon: <Clock size={15} />, count: SESSIONS.length },
+const NAV_ITEMS: { id: ViewId; label: string; icon: React.ReactNode }[] = [
+  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={15} /> },
+  { id: "characters", label: "Characters", icon: <Users size={15} /> },
+  { id: "locations", label: "Locations", icon: <MapPin size={15} /> },
+  { id: "factions", label: "Organisations", icon: <Shield size={15} /> },
+  { id: "quests", label: "Quests", icon: <Scroll size={15} /> },
+  { id: "journals", label: "Journals", icon: <BookOpen size={15} /> },
+  { id: "items", label: "Items", icon: <Package size={15} /> },
+  { id: "sessions", label: "Session History", icon: <Clock size={15} /> },
 ];
 
-const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings, onSync, syncing, lastSynced }: {
+const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings, onSync, syncing, lastSynced, counts, campaignName }: {
   view: ViewId; onNavigate: (v: ViewId) => void; collapsed: boolean;
   setCollapsed: (v: boolean) => void; onSettings: () => void;
   onSync: () => void; syncing: boolean; lastSynced: string | null;
+  counts: Record<string, number>; campaignName: string;
 }) => (
   <aside className="flex flex-col h-full transition-all duration-300 shrink-0"
     style={{ width: collapsed ? "56px" : "220px", background: "linear-gradient(180deg,#0a0f16,#0d1320)", borderRight: "1px solid rgba(201,168,76,0.12)" }}>
@@ -436,7 +437,7 @@ const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings, onSync
       {!collapsed && (
         <div className="min-w-0 flex-1">
           <div className="text-xs font-[Cinzel] font-semibold text-[#c9a84c] tracking-wider truncate">Goldcrest</div>
-          <div className="text-[9px] font-mono text-[#5a5244] tracking-widest uppercase">Archive · Demo</div>
+          <div className="text-[9px] font-mono text-[#5a5244] tracking-widest uppercase truncate">{campaignName || "Archive"}</div>
         </div>
       )}
       <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-[#5a5244] hover:text-[#c9a84c] transition-colors shrink-0">
@@ -445,25 +446,28 @@ const Sidebar = ({ view, onNavigate, collapsed, setCollapsed, onSettings, onSync
     </div>
 
     <nav className="flex-1 py-3 overflow-y-auto">
-      {NAV.map(item => (
-        <button key={item.id} onClick={() => onNavigate(item.id)}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-150 group relative"
-          style={{ color: view === item.id ? "#c9a84c" : "#8a7d6a", background: view === item.id ? "rgba(201,168,76,0.08)" : "transparent" }}>
-          {view === item.id && <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r-full bg-[#c9a84c]" />}
-          <span className="shrink-0 group-hover:text-[#c9a84c] transition-colors">{item.icon}</span>
-          {!collapsed && (
-            <>
-              <span className="flex-1 text-xs font-[Cinzel] tracking-wide truncate group-hover:text-[#c9a84c] transition-colors">{item.label}</span>
-              {item.count > 0 && (
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm shrink-0"
-                  style={{ color: "#5a5244", background: "rgba(138,125,106,0.12)", border: "1px solid rgba(138,125,106,0.15)" }}>
-                  {item.count}
-                </span>
-              )}
-            </>
-          )}
-        </button>
-      ))}
+      {NAV_ITEMS.map(item => {
+        const count = counts[item.id] ?? 0;
+        return (
+          <button key={item.id} onClick={() => onNavigate(item.id)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-150 group relative"
+            style={{ color: view === item.id ? "#c9a84c" : "#8a7d6a", background: view === item.id ? "rgba(201,168,76,0.08)" : "transparent" }}>
+            {view === item.id && <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r-full bg-[#c9a84c]" />}
+            <span className="shrink-0 group-hover:text-[#c9a84c] transition-colors">{item.icon}</span>
+            {!collapsed && (
+              <>
+                <span className="flex-1 text-xs font-[Cinzel] tracking-wide truncate group-hover:text-[#c9a84c] transition-colors">{item.label}</span>
+                {count > 0 && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm shrink-0"
+                    style={{ color: "#5a5244", background: "rgba(138,125,106,0.12)", border: "1px solid rgba(138,125,106,0.15)" }}>
+                    {count}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+        );
+      })}
     </nav>
 
     <div className="border-t px-3 py-3 space-y-1" style={{ borderColor: "rgba(201,168,76,0.08)" }}>
@@ -1620,27 +1624,18 @@ export default function App() {
     setSyncing(false);
   };
 
-  // ── Debug ──────────────────────────────────────────────────────────────
-  const [debugResult, setDebugResult] = useState("");
-  const [showDebug, setShowDebug] = useState(false);
-
-  const runDebug = async () => {
-    setDebugResult("Testing…");
-    setShowDebug(true);
-    // Test health first, then kanka
-    try {
-      const token = localStorage.getItem("kanka_token") || "";
-      const kanka = await fetch(`${KANKA_BASE}/campaigns`, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      });
-      const kankaText = await kanka.text();
-      setDebugResult(`Kanka /campaigns: ${kanka.status}\n${kankaText.slice(0, 600)}`);
-    } catch (e: unknown) {
-      setDebugResult(`Fetch error: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
   const isLive = !!kankaData;
+
+  const counts: Record<string, number> = {
+    dashboard: 0,
+    characters: kankaData?.characters?.length ?? 0,
+    locations: kankaData?.locations?.length ?? 0,
+    factions: kankaData?.organisations?.length ?? 0,
+    quests: kankaData?.quests?.length ?? 0,
+    journals: kankaData?.journals?.length ?? 0,
+    items: kankaData?.items?.length ?? 0,
+    sessions: SESSIONS.length,
+  };
 
   const content: Record<ViewId, React.ReactNode> = isLive ? {
     dashboard: <KankaDashboard data={kankaData!} onNavigate={navigate} />,
@@ -1666,7 +1661,7 @@ export default function App() {
     <div className="dark flex h-screen overflow-hidden" style={{ background: "#0d1117", fontFamily: "'Crimson Pro', Georgia, serif" }}>
       {showSettings && <KankaSettingsModal onClose={() => setShowSettings(false)} onConnected={handleConnected} />}
 
-      <Sidebar view={view} onNavigate={navigate} collapsed={collapsed} setCollapsed={setCollapsed} onSettings={() => setShowSettings(true)} onSync={handleSync} syncing={syncing} lastSynced={lastSynced} />
+      <Sidebar view={view} onNavigate={navigate} collapsed={collapsed} setCollapsed={setCollapsed} onSettings={() => setShowSettings(true)} onSync={handleSync} syncing={syncing} lastSynced={lastSynced} counts={counts} campaignName={kankaData?.campaignName || ""} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="flex items-center gap-4 px-6 py-3 border-b shrink-0"
@@ -1675,7 +1670,7 @@ export default function App() {
           <div className="flex items-center gap-2 ml-auto shrink-0">
             {loading && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-[#c9a84c]">
-                <Loader2 size={12} className="animate-spin" /> Loading campaign {DEFAULT_CAMPAIGN_ID}…
+                <Loader2 size={12} className="animate-spin" /> Loading…
               </div>
             )}
             {loadError && (
@@ -1685,11 +1680,6 @@ export default function App() {
                 <WifiOff size={12} className="shrink-0" /> {loadError}
               </div>
             )}
-            <button onClick={runDebug}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-xs font-mono transition-all text-[#8a7d6a] hover:text-[#c9a84c] hover:border-[rgba(201,168,76,0.35)]"
-              style={{ borderColor: "rgba(201,168,76,0.18)" }}>
-              Test API
-            </button>
             <button onClick={() => setShowGraph(!showGraph)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-xs font-mono transition-all"
               style={{ borderColor: showGraph ? "rgba(201,168,76,0.5)" : "rgba(201,168,76,0.18)", color: showGraph ? "#c9a84c" : "#8a7d6a", background: showGraph ? "rgba(201,168,76,0.1)" : "transparent" }}>
@@ -1708,16 +1698,6 @@ export default function App() {
             </button>
           </div>
         </header>
-
-        {showDebug && (
-          <div className="shrink-0 border-b px-6 py-4" style={{ borderColor: "rgba(201,168,76,0.2)", background: "#0a0f16" }}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[10px] font-mono tracking-widest uppercase text-[#c9a84c]">Edge Function Debug</div>
-              <button onClick={() => setShowDebug(false)}><X size={13} className="text-[#5a5244] hover:text-[#c9a84c]" /></button>
-            </div>
-            <pre className="text-[10px] font-mono text-[#8a7d6a] whitespace-pre-wrap break-all leading-relaxed max-h-40 overflow-y-auto">{debugResult}</pre>
-          </div>
-        )}
 
         {showGraph && (
           <div className="shrink-0 border-b px-6 py-4" style={{ borderColor: "rgba(201,168,76,0.12)", background: "#0a0f16" }}>
