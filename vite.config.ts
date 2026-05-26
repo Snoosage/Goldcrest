@@ -19,7 +19,7 @@ export default defineConfig({
           console.log(`[kanka-proxy] ${req.method} kanka.io${kankaPath} (token: ${auth ? auth.slice(0,20)+'...' : 'NONE'})`);
 
           const options = {
-            hostname: 'kanka.io',
+            hostname: 'app.kanka.io',
             path: kankaPath,
             method: req.method || 'GET',
             headers: {
