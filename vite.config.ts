@@ -56,7 +56,7 @@ export default defineConfig({
         server.middlewares.use('/kanka-proxy', (req: IncomingMessage, res: ServerResponse) => {
           const apiPath = req.url || '/';
           const auth = (req.headers['authorization'] || '').replace('Bearer ', '');
-          const url = `https://kanka.io/api/1.0${apiPath}`;
+          const url = `https://api.kanka.io/1.0${apiPath}`;
           kankaRequest(url, auth, res);
         });
       },
