@@ -3,9 +3,48 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import https from 'https'
+import http from 'http'
 import type { IncomingMessage, ServerResponse } from 'http'
 
-const KANKA_HOST = 'app.kanka.io';
+function kankaRequest(urlStr: string, auth: string, res: ServerResponse, redirects = 5) {
+  const url = new URL(urlStr);
+  const mod = url.protocol === 'https:' ? https : http;
+  const options = {
+    hostname: url.hostname,
+    path: url.pathname + url.search,
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${auth}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'GoldcrestArchive/1.0',
+    },
+  };
+  console.log(`[kanka-proxy] → ${urlStr}`);
+  const req = mod.request(options, (upRes) => {
+    if ([301,302,303,307,308].includes(upRes.statusCode!) && upRes.headers.location && redirects > 0) {
+      const next = upRes.headers.location.startsWith('http') ? upRes.headers.location : `https://kanka.io${upRes.headers.location}`;
+      console.log(`[kanka-proxy] redirect ${upRes.statusCode} → ${next}`);
+      upRes.resume();
+      kankaRequest(next, auth, res, redirects - 1);
+      return;
+    }
+    let body = '';
+    upRes.on('data', (chunk) => { body += chunk; });
+    upRes.on('end', () => {
+      console.log(`[kanka-proxy] ${upRes.statusCode} — ${body.slice(0, 300)}`);
+      res.statusCode = upRes.statusCode || 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(body);
+    });
+  });
+  req.on('error', (err) => {
+    console.error(`[kanka-proxy] error:`, err.message);
+    res.statusCode = 502;
+    res.end(JSON.stringify({ error: err.message }));
+  });
+  req.end();
+}
 
 export default defineConfig({
   plugins: [
@@ -16,47 +55,13 @@ export default defineConfig({
       configureServer(server) {
         server.middlewares.use('/kanka-proxy', (req: IncomingMessage, res: ServerResponse) => {
           const apiPath = req.url || '/';
-          const kankaPath = `/api/1.0${apiPath}`;
           const auth = (req.headers['authorization'] || '').replace('Bearer ', '');
-          console.log(`[kanka-proxy] ${req.method} https://${KANKA_HOST}${kankaPath} (token: ${auth ? auth.slice(0,20)+'...' : 'NONE'})`);
-
-          const options = {
-            hostname: KANKA_HOST,
-            path: kankaPath,
-            method: req.method || 'GET',
-            headers: {
-              'Authorization': `Bearer ${auth}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
-          };
-
-          const upstream = https.request(options, (upRes) => {
-            let body = '';
-            upRes.on('data', (chunk) => { body += chunk; });
-            upRes.on('end', () => {
-              console.log(`[kanka-proxy] ${upRes.statusCode} — body: ${body.slice(0, 200)}`);
-              res.statusCode = upRes.statusCode || 500;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(body);
-            });
-          });
-
-          upstream.on('error', (err) => {
-            console.error(`[kanka-proxy] error:`, err.message);
-            res.statusCode = 502;
-            res.end(JSON.stringify({ error: err.message }));
-          });
-
-          upstream.end();
+          const url = `https://kanka.io/api/1.0${apiPath}`;
+          kankaRequest(url, auth, res);
         });
       },
     },
   ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
+  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })
