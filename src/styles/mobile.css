@@ -1,0 +1,252 @@
+/* Mobile responsiveness pass for the generated Goldcrest archive UI.
+   The Figma Make app uses many fixed desktop Tailwind classes. These overrides
+   make the current app usable on phones without rewriting every component. */
+
+html,
+body,
+#root {
+  min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  #root > .dark.flex.h-screen {
+    min-height: 100svh !important;
+    height: 100svh !important;
+  }
+
+  /* Turn the desktop sidebar into a compact bottom nav. */
+  aside.flex.flex-col.h-full {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    z-index: 40 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 76px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-right: 0 !important;
+    border-top: 1px solid rgba(201, 168, 76, 0.18) !important;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+    background: linear-gradient(180deg, rgba(13, 17, 23, 0.96), #0a0f16) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  aside.flex.flex-col.h-full > div:first-child,
+  aside.flex.flex-col.h-full > div:last-child {
+    display: none !important;
+  }
+
+  aside nav,
+  aside .flex-1 {
+    display: flex !important;
+    flex: 1 0 auto !important;
+    gap: 6px !important;
+    padding: 0 !important;
+    overflow-x: auto !important;
+  }
+
+  aside nav button,
+  aside .flex-1 button {
+    min-width: 64px !important;
+    min-height: 48px !important;
+    flex: 0 0 auto !important;
+    justify-content: center !important;
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
+  }
+
+  aside button span,
+  aside button div:not(:first-child) {
+    display: none !important;
+  }
+
+  /* Main app layout. */
+  .flex-1.flex.flex-col.min-w-0.overflow-hidden {
+    width: 100% !important;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+  }
+
+  header.flex.items-center.gap-4 {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+
+  header .relative.w-full.max-w-xl {
+    max-width: none !important;
+    flex: 1 1 100% !important;
+    order: 2 !important;
+  }
+
+  header .ml-auto {
+    margin-left: 0 !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    order: 1 !important;
+  }
+
+  header button {
+    min-height: 36px !important;
+    white-space: nowrap !important;
+  }
+
+  main.flex-1.overflow-y-auto {
+    padding-bottom: 12px !important;
+  }
+
+  /* Collapse generated desktop grids. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  [class*="col-span-"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Reduce huge desktop page padding. */
+  main > div,
+  .p-8,
+  .px-8,
+  .py-8 {
+    padding: 16px !important;
+  }
+
+  .p-6,
+  .px-6,
+  .py-6 {
+    padding: 14px !important;
+  }
+
+  .p-5,
+  .px-5,
+  .py-5 {
+    padding: 13px !important;
+  }
+
+  .p-4,
+  .px-4,
+  .py-4 {
+    padding: 12px !important;
+  }
+
+  .max-w-\[1400px\],
+  .max-w-\[1200px\],
+  .max-w-xl,
+  .max-w-md {
+    max-width: 100% !important;
+  }
+
+  h1,
+  .text-3xl {
+    font-size: 1.55rem !important;
+    line-height: 1.18 !important;
+  }
+
+  .text-2xl {
+    font-size: 1.35rem !important;
+  }
+
+  .text-xl {
+    font-size: 1.2rem !important;
+  }
+
+  /* Cards and media: keep thumbnails reasonable on phone. */
+  .h-48 {
+    height: 160px !important;
+  }
+
+  .h-36,
+  .h-24 {
+    height: 130px !important;
+  }
+
+  [style*="aspect-ratio"] {
+    max-height: 55vh !important;
+  }
+
+  .overflow-hidden {
+    min-width: 0 !important;
+  }
+
+  /* Modal should fit on small screens. */
+  .fixed.inset-0.z-50 {
+    padding: 12px !important;
+    align-items: flex-start !important;
+    overflow-y: auto !important;
+  }
+
+  .fixed.inset-0.z-50 > div {
+    width: 100% !important;
+    margin-top: max(12px, env(safe-area-inset-top)) !important;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Relationship map takes too much vertical room unless constrained. */
+  [style*="padding-bottom: 60%"] {
+    padding-bottom: 85% !important;
+  }
+}
+
+@media (max-width: 520px) {
+  header .ml-auto button {
+    font-size: 11px !important;
+    padding: 7px 9px !important;
+  }
+
+  .text-sm {
+    font-size: 0.88rem !important;
+  }
+
+  .text-xs {
+    font-size: 0.78rem !important;
+  }
+
+  .text-\[10px\] {
+    font-size: 0.68rem !important;
+  }
+
+  .gap-6,
+  .gap-5,
+  .gap-4 {
+    gap: 12px !important;
+  }
+
+  .mb-8,
+  .mb-6 {
+    margin-bottom: 16px !important;
+  }
+
+  .mt-8,
+  .mt-6 {
+    margin-top: 16px !important;
+  }
+}
