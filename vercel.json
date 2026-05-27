@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/kanka-proxy/:path*",
+      "destination": "/api/kanka/:path*"
+    }
+  ]
+}
