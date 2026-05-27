@@ -1,14 +1,32 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+type QueryValue = string | string[] | undefined;
+
+type ApiRequest = {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  query: Record<string, QueryValue>;
+};
+
+type ApiResponse = {
+  setHeader: (name: string, value: string) => void;
+  status: (code: number) => ApiResponse;
+  json: (body: unknown) => void;
+  send: (body: string) => void;
+};
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
 
 const KANKA_BASE_URL = "https://api.kanka.io/1.0";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const authHeader = req.headers.authorization;
+  const rawAuthHeader = req.headers.authorization;
+  const authHeader = Array.isArray(rawAuthHeader) ? rawAuthHeader[0] : rawAuthHeader;
   const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : undefined;
   const token = process.env.KANKA_API_TOKEN || tokenFromHeader;
 
