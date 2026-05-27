@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/kanka-proxy/:path*",
-      "destination": "/api/kanka/:path*"
+      "destination": "/api/kanka?path=:path*"
     }
   ]
 }
